@@ -59,9 +59,6 @@ $latestScript = "https://github.com/ChrisTitusTech/winutil/releases/latest/downl
 # Store the elevation status of the process.
 $isElevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-# Clear all previously shown console output.
-Clear-Host
-
 # Check if the script is running as administrator.
 if (!$isElevated) {
     Write-Output "WinUtil needs to be run as administrator. Attempting to relaunch."
