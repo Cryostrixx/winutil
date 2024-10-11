@@ -71,7 +71,7 @@ if (!$isElevated) {
     }
 
     # Setup the processes used to launch the script.
-    $powershellCmd = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh" } else { "powershell" }
+    $powershellCmd = if (Get-Command pwsh.exe -ErrorAction SilentlyContinue) { "pwsh.exe" } else { "powershell.exe" }
     $processCmd = if (Get-Command wt.exe -ErrorAction SilentlyContinue) { "wt.exe" } else { $powershellCmd }
 
     # Start a new process with elevated privileges.
@@ -85,22 +85,17 @@ $logdir = "$env:localappdata\winutil\logs"
 [System.IO.Directory]::CreateDirectory("$logdir") | Out-Null
 Start-Transcript -Path "$logdir\winutil_$dateTime.log" -Append -NoClobber | Out-Null
 
-# Set the elevation status prefix.
-$elevationStatusPrefix = if (!$isElevated) { "User" } else { "Admin" }
-
 # Set the fallback PowerShell window title.
 $fallbackWindowTitle = "WinUtil"
 
 # Set the PowerShell window title.
 try {
     if ($MyInvocation.MyCommand.Path) {
-        $Host.UI.RawUI.WindowTitle = "($elevationStatusPrefix) " + $MyInvocation.MyCommand.Path
+        $Host.UI.RawUI.WindowTitle = "(Admin) " + $MyInvocation.MyCommand.Path
     } else {
-        $Host.UI.RawUI.WindowTitle = "($elevationStatusPrefix) " + $MyInvocation.MyCommand.Definition
+        $Host.UI.RawUI.WindowTitle = "(Admin) " + $MyInvocation.MyCommand.Definition
     }
 } catch {
-    $Host.UI.RawUI.WindowTitle = "($elevationStatusPrefix) " + $fallbackWindowTitle
+    Write-Host "Exception setting `"WindowTitle`": Window title is too long. Using fallback window title." -ForegroundColor Yellow
+    $Host.UI.RawUI.WindowTitle = "(Admin) " + $fallbackWindowTitle
 }
-
-# Clear the console output window.
-Clear-Host
