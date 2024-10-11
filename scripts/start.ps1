@@ -88,6 +88,9 @@ Start-Transcript -Path "$logdir\winutil_$dateTime.log" -Append -NoClobber | Out-
 # Set the fallback PowerShell window title.
 $fallbackWindowTitle = "WinUtil"
 
+# Clear the console output window.
+Clear-Host
+
 # Set the PowerShell window title.
 try {
     if ($MyInvocation.MyCommand.Path) {
