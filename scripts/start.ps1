@@ -6,16 +6,17 @@
     Version        : #{replaceme}
 #>
 
+# Create a param-block containing the script's parameters.
 param (
     [switch]$Debug,
     [string]$Config,
     [switch]$Run
 )
 
-# Initialize empty array to store the script's arguments
+# Initialize an empty array to store the script's arguments.
 $argsList = @()
 
-# Iterate over the parameters and add them to the argsList array
+# Iterate over the parameters and append them to $argsList.
 $PSBoundParameters.GetEnumerator() | ForEach-Object {
     $argsList += if ($_.Value -is [switch] -and $_.Value) {
         "-$($_.Key)"
@@ -24,59 +25,82 @@ $PSBoundParameters.GetEnumerator() | ForEach-Object {
     }
 }
 
-# Set DebugPreference based on the -Debug switch
+# Set DebugPreference based on the -Debug switch.
 if ($Debug) {
     $DebugPreference = "Continue"
 }
 
+# Handle the -Config parameter.
 if ($Config) {
     $PARAM_CONFIG = $Config
 }
 
+# Handle the -Run switch.
 $PARAM_RUN = $false
-# Handle the -Run switch
 if ($Run) {
     Write-Host "Running config file tasks..."
     $PARAM_RUN = $true
 }
 
-# Load DLLs
+# Load DLLs.
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName System.Windows.Forms
 
-# Variable to sync between runspaces
+# Variable to sync between runspaces.
 $sync = [Hashtable]::Synchronized(@{})
 $sync.PSScriptRoot = $PSScriptRoot
 $sync.version = "#{replaceme}"
 $sync.configs = @{}
 $sync.ProcessRunning = $false
 
-# Store latest script URL in variable.
+# Store the latest script URL in a variable.
 $latestScript = "https://github.com/ChrisTitusTech/winutil/releases/latest/download/winutil.ps1"
 
-# Check if script is running as Administrator
-if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Output "Winutil needs to be run as Administrator. Attempting to relaunch."
+# Store the elevation status of the process.
+$isElevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-    # Partial rollback from #2648, changed irm and iex to Invoke-RestMethod and Invoke-Expression.
-    $script = if ($MyInvocation.MyCommand.Path) { "& '" + $MyInvocation.MyCommand.Path + "' $($argsList)" } else { Invoke-Expression "& { '$(Invoke-RestMethod $latestScript)' } $($argsList)" }
+# Check if the script is running as administrator.
+if (!$isElevated) {
+    Write-Output "WinUtil needs to be run as administrator. Attempting to relaunch."
 
-    $powershellcmd = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh" } else { "powershell" }
-    $processCmd = if (Get-Command wt.exe -ErrorAction SilentlyContinue) { "wt.exe" } else { $powershellcmd }
+    # Create a script construct and store it in-memory.
+    $script = if ($MyInvocation.MyCommand.Path) {
+        "& '" + $MyInvocation.MyCommand.Path + "' $argsList"
+    } else {
+        Invoke-Expression "& { '$(Invoke-RestMethod $latestScript)' } $argsList"
+    }
 
-    # Start new process with elevated privileges
-    Start-Process $processCmd -ArgumentList "$powershellcmd -ExecutionPolicy Bypass -NoProfile -Command $script" -Verb RunAs
+    # Setup the processes used to launch the script.
+    $powershellCmd = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh" } else { "powershell" }
+    $processCmd = if (Get-Command wt.exe -ErrorAction SilentlyContinue) { "wt.exe" } else { $powershellCmd }
 
+    # Start a new process with elevated privileges.
+    Start-Process $processCmd -ArgumentList "$powershellCmd -ExecutionPolicy Bypass -NoProfile -Command $script" -Verb RunAs
     break
 }
 
-# Logging
+# Start WinUtil transcript logging.
 $dateTime = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-
 $logdir = "$env:localappdata\winutil\logs"
 [System.IO.Directory]::CreateDirectory("$logdir") | Out-Null
 Start-Transcript -Path "$logdir\winutil_$dateTime.log" -Append -NoClobber | Out-Null
 
-# Set PowerShell window title
-$Host.UI.RawUI.WindowTitle = $myInvocation.MyCommand.Definition + "(Admin)"
-clear-host
+# Set the elevation status prefix.
+$elevationStatusPrefix = if (!$isElevated) { "User" } else { "Admin" }
+
+# Set the fallback PowerShell window title.
+$fallbackWindowTitle = "WinUtil"
+
+# Set the PowerShell window title.
+try {
+    if ($MyInvocation.MyCommand.Path) {
+        $Host.UI.RawUI.WindowTitle = "($elevationStatusPrefix) " + $MyInvocation.MyCommand.Path
+    } else {
+        $Host.UI.RawUI.WindowTitle = "($elevationStatusPrefix) " + $MyInvocation.MyCommand.Definition
+    }
+} catch {
+    $Host.UI.RawUI.WindowTitle = "($elevationStatusPrefix) " + $fallbackWindowTitle
+}
+
+# Clear the console output window.
+Clear-Host
