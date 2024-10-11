@@ -13,6 +13,9 @@ param (
     [switch]$Run
 )
 
+# Clear all previously displayed console output messages.
+Clear-Host
+
 # Initialize an empty array to store the script's arguments.
 $argsList = @()
 
