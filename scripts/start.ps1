@@ -68,9 +68,9 @@ if (!$isElevated) {
 
     # Create a script construct and store it in-memory.
     $script = if ($MyInvocation.MyCommand.Path) {
-        "& '" + $MyInvocation.MyCommand.Path + "' $argsList"
+        "& '" + $MyInvocation.MyCommand.Path + "'"
     } else {
-        Invoke-Expression "& { '$(Invoke-RestMethod $latestScript)' } $argsList"
+        "Invoke-RestMethod '$latestScript' | Invoke-Expression"
     }
 
     # Setup the processes used to launch the script.
