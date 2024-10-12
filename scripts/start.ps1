@@ -57,7 +57,7 @@ $sync.configs = @{}
 $sync.ProcessRunning = $false
 
 # Store the latest script URL in a variable.
-$latestScript = "https://github.com/ChrisTitusTech/winutil/releases/latest/download/winutil.ps1"
+$latestScriptURL = "https://github.com/ChrisTitusTech/winutil/releases/latest/download/winutil.ps1"
 
 # Store the elevation status of the process.
 $isElevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -70,7 +70,7 @@ if (!$isElevated) {
     $script = if ($MyInvocation.MyCommand.Path) {
         "& '" + $MyInvocation.MyCommand.Path + "'"
     } else {
-        "Invoke-RestMethod '$latestScript' | Invoke-Expression"
+        "Invoke-RestMethod '$latestScriptURL' | Invoke-Expression"
     }
 
     # Setup the processes used to launch the script.
