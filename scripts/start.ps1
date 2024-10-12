@@ -57,28 +57,43 @@ $sync.configs = @{}
 $sync.ProcessRunning = $false
 
 # Store the latest script URL in a variable.
-$latestScript = "https://github.com/ChrisTitusTech/winutil/releases/latest/download/winutil.ps1"
+$latestScriptURL = "https://github.com/ChrisTitusTech/winutil/releases/latest/download/winutil.ps1"
 
 # Store the elevation status of the process.
 $isElevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 # Check if the script is running as administrator.
 if (!$isElevated) {
+    # Let the user know the script needs to run as admin.
     Write-Output "WinUtil needs to be run as administrator. Attempting to relaunch."
 
     # Create a script construct and store it in-memory.
     $script = if ($MyInvocation.MyCommand.Path) {
-        "& '" + $MyInvocation.MyCommand.Path + "'"
-    } else {
-        "Invoke-RestMethod '$latestScript' | Invoke-Expression"
+        "& '" + $MyInvocation.MyCommand.Path + "' $argsList"
     }
 
     # Setup the processes used to launch the script.
     $powershellCmd = if (Get-Command pwsh.exe -ErrorAction SilentlyContinue) { "pwsh.exe" } else { "powershell.exe" }
     $processCmd = if (Get-Command wt.exe -ErrorAction SilentlyContinue) { "wt.exe" } else { $powershellCmd }
 
-    # Start a new process with elevated privileges.
-    Start-Process $processCmd -ArgumentList "$powershellCmd -ExecutionPolicy Bypass -NoProfile -Command $script" -Verb RunAs
+    # Use a local script to work around arguments issues.
+    if ($MyInvocation.MyCommand.Definition) {
+        # Create the path to the downloaded script file.
+        $scriptLocation = Join-Path "$env:TEMP" "winutil.ps1"
+
+        # Download the script to the '$env:TEMP' folder.
+        $OriginalProgressPreference = $ProgressPreference
+        $ProgressPreference = "SilentlyContinue"
+        Invoke-WebRequest -Uri $latestScriptURL -OutFile $scriptLocation
+        $ProgressPreference = $OriginalProgressPreference
+
+        # Start a new script instance with elevated privileges.
+        Start-Process $processCmd -ArgumentList "$powershellCmd -ExecutionPolicy Bypass -NoProfile -File $scriptLocation $argsList" -Verb RunAs
+        break
+    }
+
+    # Start a new script instance with elevated privileges.
+    Start-Process $processCmd -ArgumentList "$powershellCmd -ExecutionPolicy Bypass -NoProfile -Command $script $argsList" -Verb RunAs
     break
 }
 
